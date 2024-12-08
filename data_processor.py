@@ -113,8 +113,9 @@ class DataProcessor:
 
     def get_patient_list(self):
         """獲取病患列表"""
-        current_year = datetime.now().year - 1911
-        one_year_ago = f"{current_year - 1:03d}0101"
+        current_year = datetime.now()
+        one_year_ago = current_year - timedelta(days=365)
+        one_year_ago_roc = f"{one_year_ago.year - 1911:03d}{one_year_ago.month:02d}{one_year_ago.day:02d}"
         
         query = """
             WITH DiabetesPatients AS (
@@ -126,6 +127,7 @@ class DataProcessor:
                 WHERE (substr(CO03M.labno, 1, 3) BETWEEN 'E08' AND 'E13'
                    OR substr(CO03M.lacd01, 1, 3) BETWEEN 'E08' AND 'E13'
                    OR substr(CO03M.lacd02, 1, 3) BETWEEN 'E08' AND 'E13')
+                AND idate >= :one_year_ago
             )
             SELECT 
                 dp.'病歷號',
@@ -144,7 +146,6 @@ class DataProcessor:
                     ROW_NUMBER() OVER (PARTITION BY kcstmr ORDER BY hdate DESC) as rn
                 FROM CO18H
                 WHERE hitem = 'Z0SHbA1c'
-                AND hdate >= :one_year_ago
             ) h ON dp.'病歷號' = h.kcstmr AND h.rn = 1
             LEFT JOIN (
                 SELECT 
@@ -173,7 +174,7 @@ class DataProcessor:
         """
         
         with self.engine.connect() as conn:
-            result = pd.read_sql(query, conn, params={"one_year_ago": one_year_ago})
+            result = pd.read_sql(query, conn, params={"one_year_ago": one_year_ago_roc})
         return result
 
     def export_patient_data(self):
