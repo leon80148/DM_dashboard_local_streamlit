@@ -144,6 +144,7 @@ class DataProcessor:
                     ROW_NUMBER() OVER (PARTITION BY kcstmr ORDER BY hdate DESC) as rn
                 FROM CO18H
                 WHERE hitem = 'Z0SHbA1c'
+                AND hdate >= :one_year_ago
             ) h ON dp.'病歷號' = h.kcstmr AND h.rn = 1
             LEFT JOIN (
                 SELECT 
@@ -172,7 +173,7 @@ class DataProcessor:
         """
         
         with self.engine.connect() as conn:
-            result = pd.read_sql(query, conn)
+            result = pd.read_sql(query, conn, params={"one_year_ago": one_year_ago})
         return result
 
     def export_patient_data(self):
@@ -195,12 +196,13 @@ class DataProcessor:
                     WHERE (SUBSTR(labno, 1, 3) BETWEEN 'E08' AND 'E13'
                         OR SUBSTR(lacd01, 1, 3) BETWEEN 'E08' AND 'E13'
                         OR SUBSTR(lacd02, 1, 3) BETWEEN 'E08' AND 'E13')
+                    AND idate >= :one_year_ago
                 ),
                 CasedPatients AS (
                     SELECT DISTINCT kcstmr
                     FROM CO02M
                     WHERE dno IN ('P1407C', 'P1408C', 'P1409C', 'P7001C', 'P7002C')
-                    AND idate >= :current_year
+                    AND idate >= :one_year_ago
                 ),
                 EyeExamPatients AS (
                     SELECT DISTINCT kcstmr
